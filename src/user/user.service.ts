@@ -75,6 +75,16 @@ export class UserService {
     };
   }
 
+  async getWXInfo(user_id: string): Promise<WXUserInfo> {
+    const openid = await this.redisService.client.get(`wx_user_id:${user_id}`);
+    if (!openid) {
+      throw new Error('未找到微信用户');
+    }
+    return this.redisService.client.hGetAll(
+      `wx_users:${openid}`,
+    ) as unknown as Promise<WXUserInfo>;
+  }
+
   async wxLogin(js_code: string): Promise<WXUserInfo> {
     const { data } = await axios.get(
       'https://api.weixin.qq.com/sns/jscode2session',

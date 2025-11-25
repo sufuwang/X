@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Res, Get, Req } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Controller, Post, Body, Res, Get, Req, Query } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { UserService } from './user.service';
 import CreateUserDto from './dto/create-user.dto';
@@ -34,9 +35,15 @@ export class UserController {
     };
   }
 
+  @Get('/wx-info')
+  async getWXInfo(@Query('user_id') user_id: string) {
+    const { openid, session_key, ...data } =
+      await this.userService.getWXInfo(user_id);
+    return data;
+  }
+
   @Post('/wx-login')
   async wxLogin(@Body() { code }: WXLoginUserDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { openid, session_key, ...data } =
       await this.userService.wxLogin(code);
     return data;
@@ -44,7 +51,6 @@ export class UserController {
 
   @Post('/save-wx-info')
   async saveWxInfo(@Body() body: WXUserDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { openid, session_key, ...data } =
       await this.userService.saveWxInfo(body);
     return data;
