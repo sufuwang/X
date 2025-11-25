@@ -29,6 +29,9 @@ export class WXUserDto {
   user_id: string;
 
   @IsString()
+  conversation_id: string;
+
+  @IsString()
   avatar_url: string;
 
   @IsString()

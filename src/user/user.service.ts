@@ -90,16 +90,13 @@ export class UserService {
     if (!data.openid) {
       throw new Error(data.errmsg || '微信登录失败');
     }
-
     const key = `wx_users:${data.openid}`;
     const user = (await this.redisService.client.hGetAll(
       key,
     )) as unknown as WXUserInfo;
-    console.info('user: ', user);
     if (user.openid) {
       return user;
     }
-
     const row: WXUserInfo = {
       ...data,
       user_id: uuid(),
@@ -116,19 +113,14 @@ export class UserService {
     const openid = await this.redisService.client.get(
       `wx_user_id:${wxUserDto.user_id}`,
     );
-
     if (!openid) {
       throw new Error('未找到微信用户');
     }
-
     const user = (await this.redisService.client.hGetAll(
       `wx_users:${openid}`,
     )) as unknown as WXUserInfo;
-
     const data = Object.assign(user, wxUserDto);
     await this.redisService.client.hSet(`wx_users:${data.openid}`, data as any);
-
-    console.info('saved wx user info: ', openid, user, data);
     return data;
   }
 
