@@ -45,7 +45,7 @@ export class UserService {
       );
       if (info) {
         const diffCreateAt = differenceInSeconds(Date.now(), info.createAt);
-        if (diffCreateAt < 60) {
+        if (diffCreateAt > 0 && diffCreateAt < 60) {
           return {
             status: 'CalmingDown',
             message: `请稍后再试，还需等待 ${60 - diffCreateAt} 秒`,
