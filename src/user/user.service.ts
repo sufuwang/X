@@ -128,6 +128,9 @@ export class UserService {
       return data;
     }
 
+    const random = Math.ceil(Math.random() * 100000000);
+    createUserDto.username = `${createUserDto.username}.${random}`;
+
     const userId = uuid();
     await Promise.all([
       ...Object.entries(createUserDto)

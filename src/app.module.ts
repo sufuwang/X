@@ -5,11 +5,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RedisModule } from './redis/redis.module';
 import { UserModule } from './user/user.module';
+import { Mail } from './lib/mail';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // 将 ConfigService 设为全局可用，这样就能在任何模块中使用而无需再次导入 ConfigModule [citation:2][citation:5][citation:9]
+      isGlobal: true, // 将 ConfigService 设为全局可用，这样就能在任何模块中使用而无需再次导入 ConfigModule
       envFilePath: [`.env.${process.env.NODE_ENV}`, '.env.local', '.env'],
     }),
     JwtModule.register({
@@ -23,4 +24,8 @@ import { UserModule } from './user/user.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor() {
+    Mail.start();
+  }
+}
