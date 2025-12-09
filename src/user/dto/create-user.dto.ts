@@ -5,6 +5,8 @@ import {
   MaxLength,
   Matches,
   IsOptional,
+  IsIn,
+  Length,
 } from 'class-validator';
 
 export default class CreateUserDto {
@@ -15,6 +17,12 @@ export default class CreateUserDto {
     message: '用户名只能包含字母、数字、小数点和下划线',
   })
   username: string;
+
+  @IsString()
+  @IsIn(['admin', 'xinxi'], {
+    message: 'source 只能是 admin 或 xinxi',
+  })
+  source: string;
 
   @IsEmail({}, { message: '请输入有效的邮箱地址' })
   email: string;
@@ -31,4 +39,8 @@ export default class CreateUserDto {
   @IsString()
   @Matches(/^1[3-9]\d{9}$/, { message: '请输入有效的手机号码' })
   phone?: string;
+
+  @IsString()
+  @Length(6, 6)
+  verifyCode: string;
 }

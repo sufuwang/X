@@ -1,11 +1,16 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import CreateUserDto from './dto/create-user.dto';
-import LoginUserDto, { WXUserDto } from './dto/login-user.dto';
+import LoginUserDto, {
+  WXUserDto,
+  UserIdentificationDto,
+} from './dto/login-user.dto';
 import { RedisService } from 'src/redis/redis.service';
 import { randomUUID as uuid } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { CookieOptions } from '../lib/cookies';
 import axios from 'axios';
+import { sendVerifyCode } from 'src/lib/mail';
+import { differenceInSeconds, format } from 'date-fns';
 
 @Injectable()
 export class UserService {
@@ -23,6 +28,75 @@ export class UserService {
     });
   }
 
+  async userExistence(userIdentification: UserIdentificationDto) {
+    const username = await this.redisService.client.hGet(
+      `users:${userIdentification.email}`,
+      'username',
+    );
+    return {
+      status: username ? 'UserExist' : 'UserNotFound',
+    };
+  }
+
+  async sendVerifyCode(email: string) {
+    try {
+      const info = await this.redisService.client.hGetAll(
+        `verifyCode:${email}`,
+      );
+      if (info) {
+        const diffCreateAt = differenceInSeconds(Date.now(), info.createAt);
+        if (diffCreateAt < 60) {
+          return {
+            status: 'CalmingDown',
+            message: `请稍后再试，还需等待 ${60 - diffCreateAt} 秒`,
+            time: 60 - diffCreateAt,
+          };
+        }
+      }
+      const { verifyCode } = await sendVerifyCode([email]);
+      this.redisService.client.hSet(`verifyCode:${email}`, {
+        createAt: format(Date.now(), 'yyyy-MM-dd HH:mm:ss'),
+        verifyCode,
+        email,
+      });
+      return {
+        status: 'Success',
+        time: 60,
+      };
+    } catch (error) {
+      return {
+        status: 'Failure',
+        message: error.toString(),
+      };
+    }
+  }
+
+  async checkVerifyCode({ email, verifyCode }: UserIdentificationDto) {
+    const info = await this.redisService.client.hGetAll(`verifyCode:${email}`);
+    if (!info || !info.verifyCode) {
+      return {
+        status: 'Failure',
+        message: '未找到对应验证码',
+      };
+    }
+    const diffCreateAt = differenceInSeconds(Date.now(), info.createAt);
+    if (diffCreateAt > 60 * 10) {
+      return {
+        status: 'Failure',
+        message: '验证码已过期',
+      };
+    }
+    if (info.verifyCode === verifyCode) {
+      return {
+        status: 'Success',
+      };
+    }
+    return {
+      status: 'VerifyCodeError',
+      message: '验证码错误',
+    };
+  }
+
   async create(createUserDto: CreateUserDto) {
     const usersScan = this.redisService.client.scanIterator({
       MATCH: 'users:*',
@@ -32,18 +106,26 @@ export class UserService {
     const curUserEmail = `users:${createUserDto.email}`;
 
     if (Array.isArray(usedEmails)) {
-      if (usedEmails.length > 1) {
+      if (usedEmails.length > 10) {
         throw new Error('已达到创建用户的上限');
       }
       if (usedEmails.includes(curUserEmail)) {
         throw new Error('当前邮箱已被占用');
       }
-      for (const key of usedEmails) {
-        const username = await this.redisService.client.hGet(key, 'username');
-        if (username === createUserDto.username) {
-          throw new Error('当前昵称已被占用');
-        }
-      }
+      // for (const key of usedEmails) {
+      //   const username = await this.redisService.client.hGet(key, 'username');
+      //   if (username === createUserDto.username) {
+      //     throw new Error('当前昵称已被占用');
+      //   }
+      // }
+    }
+
+    const data = await this.checkVerifyCode({
+      email: createUserDto.email,
+      verifyCode: createUserDto.verifyCode,
+    });
+    if (data?.status !== 'Success') {
+      return data;
     }
 
     const userId = uuid();
@@ -57,6 +139,7 @@ export class UserService {
     return {
       access_token: this.getAccessToken(userId, createUserDto.email),
       directUrl: '/sign-in',
+      status: 'Success',
     };
   }
 
@@ -65,12 +148,18 @@ export class UserService {
     const user = await this.redisService.client.hGetAll(curUserEmail);
 
     if (!user.userId) {
-      throw new Error('用户不存在');
+      return {
+        status: 'UserNotFound',
+      };
     }
     if (user.password !== loginUserDto.password) {
-      throw new Error('密码错误');
+      return {
+        status: 'PasswordError',
+      };
     }
     return {
+      status: 'Success',
+      username: user.username,
       access_token: this.getAccessToken(user.userId, user.email),
     };
   }

@@ -3,19 +3,41 @@ import { Controller, Post, Body, Res, Get, Req, Query } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { UserService } from './user.service';
 import CreateUserDto from './dto/create-user.dto';
-import LoginUserDto, { WXLoginUserDto, WXUserDto } from './dto/login-user.dto';
+import LoginUserDto, {
+  WXLoginUserDto,
+  WXUserDto,
+  UserIdentificationDto,
+} from './dto/login-user.dto';
 import { CookieOptions } from '../lib/cookies';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @Post('/user-existence')
+  async userExistence(@Body() userIdentification: UserIdentificationDto) {
+    return this.userService.userExistence(userIdentification);
+  }
+
+  @Post('/send-verifyCode')
+  sendVerifyCode(@Body() { email }: UserIdentificationDto) {
+    return this.userService.sendVerifyCode(email);
+  }
+
+  @Post('/check-verifyCode')
+  async checkVerifyCode(@Body() body: UserIdentificationDto) {
+    return this.userService.checkVerifyCode(body);
+  }
+
   @Post('/register')
   async create(
     @Res({ passthrough: true }) res: Response,
     @Body() createUserDto: CreateUserDto,
   ) {
-    await this.userService.create(createUserDto);
+    const data = await this.userService.create(createUserDto);
+    if (data.status !== 'Success') {
+      return data;
+    }
     return this.login(res, {
       email: createUserDto.email,
       password: createUserDto.password,
@@ -30,6 +52,8 @@ export class UserController {
     const data = await this.userService.login(loginUserDto);
     res.cookie('access_token', data.access_token, CookieOptions);
     return {
+      status: data.status,
+      username: data.username,
       access_token: data.access_token,
       redirect_url: '/',
     };
