@@ -9,7 +9,7 @@ import { randomUUID as uuid } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { CookieOptions } from '../lib/cookies';
 import axios from 'axios';
-import { sendVerifyCode } from 'src/lib/mail';
+import { sendVerifyCode } from '../lib/mail';
 import { differenceInSeconds, format } from 'date-fns';
 
 @Injectable()
