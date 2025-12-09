@@ -54,11 +54,13 @@ export class UserService {
         }
       }
       const { verifyCode } = await sendVerifyCode([email]);
-      this.redisService.client.hSet(`verifyCode:${email}`, {
+      const key = `verifyCode:${email}`;
+      this.redisService.client.hSet(key, {
         createAt: format(Date.now(), 'yyyy-MM-dd HH:mm:ss'),
         verifyCode,
         email,
       });
+      this.redisService.client.expire(key, 60 * 10);
       return {
         status: 'Success',
         time: 60,
